@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RFID Card Details</title>
+  <link rel="stylesheet" href="stylesheets/card.css">
+  <style>
+    /* Add this CSS for centering the Disable Card button */
+    .disable-card-btn {
+      display: block;
+      margin: 20px auto;
+      padding: 10px 20px;
+      background-color: #ff4d4d;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .disable-card-btn:hover {
+      background-color: #e60000;
+    }
+  </style>
+</head>
+<body>
+  <div class="card-container">
+    <!-- Card Owner Details -->
+    <div class="card-owner">
+        <h2>Card Owner Details</h2>
+        <p><strong>Name:</strong> </p>
+        <p><strong>Email:</strong> </p>
+        <p><strong>Phone:</strong> </p>
+        <button id="disableCardBtn" class="disable-card-btn">Disable Card</button>
+    </div>
+
+    <!-- E-Wallet Section -->
+    <div class="e-wallet">
+        <p><strong> Wallet Balance:</strong> </p>
+        <p><strong> Card Balance:</strong> </p>
+        <a href="/recharge-wallet" class="recharge-wallet-btn">Recharge E-Wallet</a>
+        <a href="/recharge" class="recharge-btn">Recharge Card</a>
+    </div>
+  </div>
+
+  <script type="module">
+    // Import Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
+    import { getDatabase, ref, get, update, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-database.js";
+
+    // Firebase configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyAE3g4EQhn2OrSj4gxvhOvF3u0JbLflM7U",
+        authDomain: "rfid-bus-ticketing-3c860.firebaseapp.com",
+        databaseURL: "https://rfid-bus-ticketing-3c860-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "rfid-bus-ticketing-3c860",
+        storageBucket: "rfid-bus-ticketing-3c860.appspot.com",
+        messagingSenderId: "861121022479",
+        appId: "1:861121022479:web:8fe8f0c99316d07908317a",
+        measurementId: "G-2CQPV5612P"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // Retrieve the user's email from localStorage (set during login)
+    const userEmail = JSON.parse(localStorage.getItem("userData")).email;
+
+    // Function to fetch user data from Firebase
+    async function fetchUserCardDetails(email) {
+        try {
+            const dbRef = ref(db, "registrations");
+            const userQuery = query(dbRef, orderByChild("email"), equalTo(email));
+            const snapshot = await get(userQuery);
+
+            if (snapshot.exists()) {
+                const userKey = Object.keys(snapshot.val())[0];
+                const userData = snapshot.val()[userKey];
+
+                document.querySelector(".card-owner p:nth-child(2)").textContent = `Name: ${userData.name || "N/A"}`;
+                document.querySelector(".card-owner p:nth-child(3)").textContent = `Email: ${userData.email || "N/A"}`;
+                document.querySelector(".card-owner p:nth-child(4)").textContent = `Phone: ${userData.contact || "N/A"}`;
+                document.querySelector(".e-wallet p:nth-child(1)").textContent = `Wallet Balance: Rs ${userData.eWalletBalance || "0.00"}`;
+                document.querySelector(".e-wallet p:nth-child(2)").textContent = `Card Balance: Rs ${userData.cardBalance || "0.00"}`;
+
+                document.getElementById("disableCardBtn").addEventListener("click", async () => {
+                    await disableCard(userKey, userData);
+                });
+            } else {
+                alert("No user found with this email.");
+            }
+        } catch (error) {
+            alert("An error occurred while fetching user data.");
+        }
+    }
+
+    async function disableCard(userKey, userData) {
+        try {
+            const walletBalance = parseFloat(userData.eWalletBalance) || 0;
+            const cardBalance = parseFloat(userData.cardBalance) || 0;
+
+            if (cardBalance > 0) {
+                const updatedWalletBalance = walletBalance + cardBalance;
+
+                await update(ref(db, `registrations/${userKey}`), {
+                    eWalletBalance: updatedWalletBalance,
+                    cardBalance: 0,
+                });
+
+                alert("Card disabled successfully!");
+                location.reload();
+            } else {
+                alert("Card balance is already zero.");
+            }
+        } catch (error) {
+            alert("An error occurred while disabling the card.");
+        }
+    }
+
+    fetchUserCardDetails(userEmail);
+  </script>
+</body>
+</html>

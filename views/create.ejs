@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard: User </title>
+    <link rel="stylesheet" href="/stylesheets/create.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    
+    <div class="container">
+
+        <nav class="container-item" id="navbar">
+            <h1>SmartPass User Data Portal</h1>
+        </nav>
+
+        <aside class="container-item" id="sidebar">
+            <div class="sidebar-options">
+                <a href="/pass">Get SmartPass</a>
+            </div>
+            <div class="sidebar-options">
+                <a href="/card"> Card Details</a>
+            </div>
+            <div class="sidebar-options">
+                <a href="/update">Update Details</a>
+            </div>
+            <div class="sidebar-options">
+                <a href="/find">Find User</a>
+            </div>
+            <div class="sidebar-options">
+                <a href="/logout">Logout</a>
+            </div>
+        </aside>
+
+        
+        <section class="container-item" id="section">
+            <!-- User Details in the Upper Right Corner -->
+            <div class="header">
+                <h2>Welcome, <%= user.name %>!</h2>
+                <div class="user-details">
+                    <p>Email: <%= user.email %></p>
+                    <p>Card Balance: $<%= user.balance %></p>
+                </div>
+            </div>
+            
+            <!-- Travel History and Fare Charges -->
+            <div class="container">
+                <h2>Your Travel History</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Fare Charge</th>
+                        </tr>
+                    </thead>
+                    <tbody id="travel-history-body">
+                        
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        
+    </div>
+    
+
+    <script type="module">
+        // Import Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
+        import { getDatabase, ref, get, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-database.js";
+    
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAE3g4EQhn2OrSj4gxvhOvF3u0JbLflM7U",
+            authDomain: "rfid-bus-ticketing-3c860.firebaseapp.com",
+            databaseURL: "https://rfid-bus-ticketing-3c860-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "rfid-bus-ticketing-3c860",
+            storageBucket: "rfid-bus-ticketing-3c860.appspot.com",
+            messagingSenderId: "861121022479",
+            appId: "1:861121022479:web:8fe8f0c99316d07908317a",
+            measurementId: "G-2CQPV5612P"
+        };
+    
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+    
+        // Retrieve the user's email from localStorage (set during login)
+        const userEmail = JSON.parse(localStorage.getItem("userData")).email;
+    
+        // Function to fetch user data from Firebase
+        async function fetchUserData(email) {
+            try {
+                // Query Firebase for the user data using email
+                const dbRef = ref(db, "registrations");
+                const userQuery = query(dbRef, orderByChild("email"), equalTo(email));
+                const snapshot = await get(userQuery);
+    
+                if (snapshot.exists()) {
+                    const userData = Object.values(snapshot.val())[0]; // Extract user data
+                    console.log("User data fetched from Firebase:", userData);
+    
+                    // Display user details
+                    document.querySelector(".header h2").textContent = `Welcome, ${userData.name}!`;
+                    document.querySelector(".user-details p:nth-child(1)").textContent = `Email: ${userData.email}`;
+                    document.querySelector(".user-details p:nth-child(2)").textContent = `Card Balance: Rs ${userData.cardBalance}`;
+    
+                    // Populate the travel history table
+                    populateTravelHistory(userData.trips);
+                } else {
+                    console.error("No user found with the provided email.");
+                    alert("No user found with this email.");
+                }
+            } catch (error) {
+                console.error("Error fetching user data from Firebase:", error);
+                alert("An error occurred while fetching user data.");
+            }
+        }
+    
+        // Function to populate the travel history table
+        function populateTravelHistory(trips) {
+            const travelHistoryBody = document.getElementById("travel-history-body");
+    
+            // Clear the existing table content
+            travelHistoryBody.innerHTML = "";
+    
+            if (trips) {
+                Object.keys(trips).forEach((tripId) => {
+                    const trip = trips[tripId];
+    
+                    // Create a new row for each trip
+                    const row = document.createElement("tr");
+    
+                    // Create cells for Date, From, To, and Fare Charge
+                    const dateCell = document.createElement("td");
+                    dateCell.textContent = trip.date || "N/A";
+                    row.appendChild(dateCell);
+    
+                    const fromCell = document.createElement("td");
+                    fromCell.textContent = trip.from || "N/A";
+                    row.appendChild(fromCell);
+    
+                    const toCell = document.createElement("td");
+                    toCell.textContent = trip.to || "N/A";
+                    row.appendChild(toCell);
+    
+                    const fareChargeCell = document.createElement("td");
+                    fareChargeCell.textContent = `$${trip.fareCharge || "0.00"}`;
+                    row.appendChild(fareChargeCell);
+    
+                    // Append the row to the table body
+                    travelHistoryBody.appendChild(row);
+                });
+            } else {
+                // If no trips exist, display a message
+                travelHistoryBody.innerHTML = "<tr><td colspan='4'>No travel history available.</td></tr>";
+            }
+        }
+    
+        // Fetch user data from Firebase and populate the table
+        fetchUserData(userEmail);
+    </script>
+    
+
+</body>
+
+</html>

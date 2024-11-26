@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recharge Balance</title>
+  <link rel="stylesheet" href="stylesheets/recharge.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Recharge Your Card</h1>
+    <form id="rechargeForm">
+      <!-- Display User's Email -->
+      <div class="form-group">
+        <label for="userEmail">Email</label>
+        <input type="text" id="userEmail" name="userEmail" readonly>
+      </div>
+
+      <!-- Input for Recharge Amount -->
+      <div class="form-group">
+        <label for="amount">Amount to Add</label>
+        <input type="number" id="amount" name="amount" required placeholder="Enter amount to recharge">
+      </div>
+
+      <button type="submit" class="recharge-btn">Add Money</button>
+    </form>
+  </div>
+
+  <script type="module">
+    // Import Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
+    import { getDatabase, ref, get, update, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-database.js";
+
+    // Firebase configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyAE3g4EQhn2OrSj4gxvhOvF3u0JbLflM7U",
+        authDomain: "rfid-bus-ticketing-3c860.firebaseapp.com",
+        databaseURL: "https://rfid-bus-ticketing-3c860-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "rfid-bus-ticketing-3c860",
+        storageBucket: "rfid-bus-ticketing-3c860.appspot.com",
+        messagingSenderId: "861121022479",
+        appId: "1:861121022479:web:8fe8f0c99316d07908317a",
+        measurementId: "G-2CQPV5612P"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // Retrieve the user's email from localStorage (set during login)
+    const userEmail = JSON.parse(localStorage.getItem("userData"))?.email;
+
+    // Populate the email field in the form
+    if (userEmail) {
+        document.getElementById("userEmail").value = userEmail;
+    } else {
+        console.error("User email not found in localStorage.");
+    }
+
+    // Form submission logic
+    document.getElementById("rechargeForm").addEventListener("submit", async (e) => {
+        e.preventDefault(); // Prevent default form submission
+
+        const amount = parseFloat(document.getElementById("amount").value);
+
+        if (isNaN(amount) || amount <= 0) {
+            alert("Please enter a valid recharge amount.");
+            return;
+        }
+
+        try {
+            // Query Firebase for the user data using email
+            const dbRef = ref(db, "registrations");
+            const userQuery = query(dbRef, orderByChild("email"), equalTo(userEmail));
+            const snapshot = await get(userQuery);
+
+            if (snapshot.exists()) {
+                const userKey = Object.keys(snapshot.val())[0]; // Get the user's unique Firebase key
+                const userData = snapshot.val()[userKey]; // Extract user data
+                const currentCardBalance = parseFloat(userData.cardBalance) || 0;
+                const currentEWalletBalance = parseFloat(userData.eWalletBalance) || 0;
+
+                // Check if the e-wallet has sufficient balance
+                if (currentEWalletBalance < amount) {
+                    alert("Insufficient e-wallet balance.");
+                    return;
+                }
+
+                // Calculate the new balances
+                const newCardBalance = currentCardBalance + amount;
+                const newEWalletBalance = currentEWalletBalance - amount;
+
+                // Update the balances in Firebase
+                await update(ref(db, `registrations/${userKey}`), {
+                    cardBalance: newCardBalance,
+                    eWalletBalance: newEWalletBalance,
+                });
+
+                alert(`Recharge successful! New card balance: Rs ${newCardBalance}, New e-wallet balance: Rs ${newEWalletBalance}`);
+                document.getElementById("amount").value = ""; // Clear the input field
+            } else {
+                alert("User not found in Firebase.");
+            }
+        } catch (error) {
+            console.error("Error updating balance:", error);
+            alert("An error occurred while updating the balance.");
+        }
+    });
+  </script>
+</body>
+</html>
